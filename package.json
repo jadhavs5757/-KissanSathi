@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "description": "KisanSaarthi AI - Know What to Grow. Know What to Do Next.",
   "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"green,cyan\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
     "build:client": "cd client && npm run build",
-    "start": "cd server && npm start",
+    "start": "cd client && npm run build && cd ../server && npm start",
     "start:prod": "cd client && npm run build && cd ../server && npm start",
     "migrate": "cd server && npm run migrate",
     "seed": "cd server && npm run seed",
@@ -21,5 +22,8 @@
     "farmers"
   ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^10.0.5"
+  }
 }
