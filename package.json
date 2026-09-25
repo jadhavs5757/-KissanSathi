@@ -1,0 +1,25 @@
+{
+  "name": "kisansaarthi-ai",
+  "version": "1.0.0",
+  "description": "KisanSaarthi AI - Know What to Grow. Know What to Do Next.",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build:client": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "start:prod": "cd client && npm run build && cd ../server && npm start",
+    "migrate": "cd server && npm run migrate",
+    "seed": "cd server && npm run seed",
+    "test": "cd server && npm test"
+  },
+  "keywords": [
+    "agriculture",
+    "ai",
+    "farm-planning",
+    "crop-recommendation",
+    "gemini",
+    "farmers"
+  ],
+  "author": "",
+  "license": "MIT"
+}

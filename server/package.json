@@ -1,0 +1,28 @@
+{
+  "name": "kisansaarthi-server",
+  "version": "1.0.0",
+  "description": "Backend API for KisanSaarthi AI",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "migrate": "node db/migrations/runMigrations.js",
+    "seed": "node db/seeds/seedSchemes.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.2.14",
+    "@google/genai": "^2.24.0",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "zod": "^3.24.1"
+  }
+}
