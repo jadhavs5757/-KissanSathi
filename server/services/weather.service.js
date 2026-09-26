@@ -4,45 +4,60 @@ import { callGeminiStructured } from '../ai/gemini.client.js';
 import { generateAgronomicWeatherAction } from '../ai/agronomyEngine.js';
 import { WeatherActionSchema } from '../validation/ai.schema.js';
 
-// Coordinates lookup cache for common Indian farming regions
-const REGION_COORDS = {
-  maharashtra: { lat: 19.7515, lon: 75.7139, label: 'Maharashtra' },
-  pune: { lat: 18.5204, lon: 73.8567, label: 'Pune' },
-  nashik: { lat: 19.9975, lon: 73.7898, label: 'Nashik' },
-  nagpur: { lat: 21.1458, lon: 79.0882, label: 'Nagpur' },
-  solapur: { lat: 17.6599, lon: 75.9064, label: 'Solapur' },
-  karnataka: { lat: 15.3173, lon: 75.7139, label: 'Karnataka' },
-  belagavi: { lat: 15.8497, lon: 74.4977, label: 'Belagavi' },
-  punjab: { lat: 31.1471, lon: 75.3412, label: 'Punjab' },
-  ludhiana: { lat: 30.9010, lon: 75.8573, label: 'Ludhiana' },
-  haryana: { lat: 29.0588, lon: 76.0856, label: 'Haryana' },
-  gujarat: { lat: 22.2587, lon: 71.1924, label: 'Gujarat' },
-  rajasthan: { lat: 27.0238, lon: 74.2179, label: 'Rajasthan' },
-  madhya_pradesh: { lat: 22.9734, lon: 78.6569, label: 'Madhya Pradesh' },
-  indore: { lat: 22.7196, lon: 75.8577, label: 'Indore' },
-  andhra_pradesh: { lat: 15.9129, lon: 79.7400, label: 'Andhra Pradesh' },
-  telangana: { lat: 18.1124, lon: 79.0193, label: 'Telangana' },
-  hyderabad: { lat: 17.3850, lon: 78.4867, label: 'Hyderabad' },
-  uttar_pradesh: { lat: 26.8467, lon: 80.9462, label: 'Uttar Pradesh' }
-};
+export async function geocodeLocation(locationStr) {
+  if (!locationStr || typeof locationStr !== 'string') return null;
+  const clean = locationStr.trim();
+  const invalid = ['unknown', 'unspecified', 'none', 'n/a', 'standard', 'default'];
+  if (!clean || invalid.includes(clean.toLowerCase())) return null;
 
-function resolveCoordinates(locationStr = '') {
-  const clean = locationStr.toLowerCase();
-  for (const [key, coords] of Object.entries(REGION_COORDS)) {
-    if (clean.includes(key)) {
-      return coords;
+  const candidates = [clean];
+  const parts = clean.split(',').map((p) => p.trim()).filter(Boolean);
+  if (parts.length > 1) {
+    candidates.push(parts.slice(1).join(', '));
+    for (let i = parts.length - 1; i >= 1; i--) {
+      candidates.push(parts[i]);
+    }
+    if (!/(plot|field|survey|gat|gut|farm|acre|no\.)/i.test(parts[0])) {
+      candidates.push(parts[0]);
     }
   }
-  // Default to central India agricultural zone
-  return { lat: 19.7515, lon: 75.7139, label: locationStr || 'Central Ag-Zone' };
+
+  for (const query of [...new Set(candidates)]) {
+    try {
+      const url = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=3&language=en&format=json`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        const best = data.results[0];
+        return {
+          lat: best.latitude,
+          lon: best.longitude,
+          label: [best.name, best.admin1, best.country].filter(Boolean).join(', ')
+        };
+      }
+    } catch {
+      // Continue
+    }
+  }
+  return null;
 }
 
 export async function getFarmWeather(farmId, userId) {
   const farm = await getFarmById(farmId, userId);
-  const coords = resolveCoordinates(farm.location);
+  const coords = await geocodeLocation(farm.location);
+
+  if (!coords) {
+    return {
+      isAvailable: false,
+      reason: 'Weather unavailable for this farm location.',
+      farmLocation: farm.location
+    };
+  }
 
   try {
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&timezone=auto&forecast_days=7`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum&wind_speed_unit=kmh&timezone=auto&forecast_days=7`;
+
     
     // Timeout of 5s to avoid freezing if network drops
     const controller = new AbortController();

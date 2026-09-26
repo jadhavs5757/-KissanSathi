@@ -113,7 +113,7 @@ export async function callGeminiStructured({ prompt, schema, featureName, fallba
     throw new Error('Gemini API is not configured and no fallback generator available.');
   }
 
-  const modelName = 'gemini-2.5-flash';
+  const modelName = 'gemini-1.5-flash';
   let retries = 0;
   const maxRetries = 2;
 

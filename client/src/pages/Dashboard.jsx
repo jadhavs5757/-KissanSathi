@@ -33,6 +33,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { t, formatCurrency } = useTranslation();
   const [loading, setLoading] = useState(true);
+  const [weatherLoading, setWeatherLoading] = useState(false);
   const [error, setError] = useState(null);
   const [farms, setFarms] = useState([]);
   const [selectedFarm, setSelectedFarm] = useState(null);
@@ -42,6 +43,38 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [expenseTotal, setExpenseTotal] = useState(0);
 
+  const loadFarmScopedData = async (farm, forceWeatherRefresh = false) => {
+    setWeatherLoading(true);
+    try {
+      const [cycles, weatherData] = await Promise.all([
+        cropService.getCropCycles(farm.id).catch(() => []),
+        farmService.getWeather(farm, { forceRefresh: forceWeatherRefresh }).catch(() => ({
+          isAvailable: false,
+          reason: 'Live weather unavailable'
+        }))
+      ]);
+
+      const currentCycle = cycles.find((c) => c.status === 'ACTIVE') || cycles[0] || null;
+      setActiveCycle(currentCycle);
+      setWeather(weatherData);
+
+      const wAction = await farmService.getWeatherAction(farm, currentCycle).catch(() => null);
+      setWeatherAction(wAction);
+      setExpenseTotal(Number(farm.total_expenses) || 0);
+
+      if (currentCycle) {
+        const taskList = await cropService.getTasks(currentCycle.id).catch(() => []);
+        setTasks(taskList);
+      } else {
+        setTasks([]);
+      }
+    } catch (err) {
+      console.warn('Error loading farm scoped data:', err);
+    } finally {
+      setWeatherLoading(false);
+    }
+  };
+
   const loadDashboardData = async () => {
     setLoading(true);
     setError(null);
@@ -49,26 +82,11 @@ export default function Dashboard() {
       const farmList = await farmService.getFarms();
       setFarms(farmList);
       if (farmList.length > 0) {
-        const farm = farmList[0];
-        setSelectedFarm(farm);
-
-        // Parallel fetch for active farm
-        const [cycles, weatherData, wAction] = await Promise.all([
-          cropService.getCropCycles(farm.id).catch(() => []),
-          farmService.getWeather(farm.id).catch(() => ({ isAvailable: false })),
-          farmService.getWeatherAction(farm.id).catch(() => null)
-        ]);
-
-        const currentCycle = cycles.find((c) => c.status === 'ACTIVE') || cycles[0];
-        setActiveCycle(currentCycle);
-        setWeather(weatherData);
-        setWeatherAction(wAction);
-        setExpenseTotal(Number(farm.total_expenses) || 0);
-
-        if (currentCycle) {
-          const taskList = await cropService.getTasks(currentCycle.id).catch(() => []);
-          setTasks(taskList);
-        }
+        const savedId = localStorage.getItem('kisansaarthi_active_farm_id');
+        const initialFarm = farmList.find((f) => f.id === savedId) || farmList[0];
+        setSelectedFarm(initialFarm);
+        localStorage.setItem('kisansaarthi_active_farm_id', initialFarm.id);
+        await loadFarmScopedData(initialFarm);
       }
     } catch (err) {
       console.error('Error loading dashboard data:', err);
@@ -76,6 +94,18 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFarmChange = async (newFarm) => {
+    if (!newFarm || newFarm.id === selectedFarm?.id) return;
+    setSelectedFarm(newFarm);
+    localStorage.setItem('kisansaarthi_active_farm_id', newFarm.id);
+    await loadFarmScopedData(newFarm);
+  };
+
+  const handleRefreshWeather = async () => {
+    if (!selectedFarm || weatherLoading) return;
+    await loadFarmScopedData(selectedFarm, true);
   };
 
   useEffect(() => {
@@ -131,9 +161,31 @@ export default function Dashboard() {
           <h1 className="text-2xl sm:text-3xl font-bold font-display text-white tracking-tight">
             {t('dashboard.title')}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            {t('dashboard.activeFarmPrefix')} <span className="text-emerald-400 font-semibold">{selectedFarm?.name}</span> ({selectedFarm?.land_area_acres} {t('common.acres')}, {selectedFarm?.location})
-          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            <span className="text-xs sm:text-sm text-slate-400">{t('dashboard.activeFarmPrefix')}</span>
+            {farms.length > 1 ? (
+              <div className="relative inline-block">
+                <select
+                  value={selectedFarm?.id}
+                  onChange={(e) => {
+                    const next = farms.find((f) => f.id === e.target.value);
+                    if (next) handleFarmChange(next);
+                  }}
+                  className="bg-slate-900/90 border border-emerald-700/60 hover:border-emerald-500 rounded-lg px-2.5 py-1 text-xs font-semibold text-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer transition-colors"
+                >
+                  {farms.map((f) => (
+                    <option key={f.id} value={f.id} className="bg-slate-900 text-slate-100">
+                      🌾 {f.name} ({f.land_area_acres} {t('common.acres')}, {f.location})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <span className="text-xs sm:text-sm text-emerald-400 font-semibold">
+                {selectedFarm?.name} ({selectedFarm?.land_area_acres} {t('common.acres')}, {selectedFarm?.location})
+              </span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <Link to={`/farms/${selectedFarm.id}/crops`}>
@@ -212,27 +264,61 @@ export default function Dashboard() {
         <Card hover>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">{t('dashboard.localWeather')}</span>
-            <CloudRain className="w-4 h-4 text-cyan-400" />
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleRefreshWeather}
+                disabled={weatherLoading}
+                className="p-1 rounded-md text-slate-400 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+                title="Refresh live weather"
+                aria-label="Refresh live weather"
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${weatherLoading ? 'animate-spin text-cyan-400' : ''}`} />
+              </button>
+              <CloudRain className="w-4 h-4 text-cyan-400" />
+            </div>
           </div>
-          {weather?.isAvailable ? (
+          {weatherLoading ? (
+            <div className="py-2 space-y-1">
+              <div className="flex items-center gap-2">
+                <RotateCw className="w-3.5 h-3.5 text-cyan-400 animate-spin" />
+                <p className="text-xs text-cyan-400 font-medium">Fetching live weather...</p>
+              </div>
+              <p className="text-[11px] text-slate-400 truncate">Connecting to live meteorological service...</p>
+            </div>
+          ) : weather?.isAvailable ? (
             <div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-extrabold text-white font-display">
-                  {Math.round(weather.current.temperature)}°C
-                </span>
-                <span className="text-xs text-slate-300 font-medium">{weather.current.condition}</span>
+              <div className="flex items-baseline justify-between gap-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-2xl font-extrabold text-white font-display">
+                    {Math.round(weather.current.temperature)}°C
+                  </span>
+                  <span className="text-xs text-slate-300 font-medium">{weather.current.condition}</span>
+                </div>
+                {weather.today?.maxTemp != null && (
+                  <span className="text-[11px] text-slate-400 font-mono shrink-0">
+                    H: {weather.today.maxTemp}° L: {weather.today.minTemp}°
+                  </span>
+                )}
               </div>
               <p className="text-xs text-slate-400 mt-1">
                 {t('dashboard.humidity')}: {weather.current.humidity}% • {t('dashboard.wind')}: {weather.current.windSpeedKmh} km/h
               </p>
-              <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-cyan-300 truncate">
-                🌧 {t('dashboard.rainProb')}: {weather.forecast?.[0]?.precipitationProbability || 0}%
+              <div className="mt-4 pt-3 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-cyan-300 gap-2">
+                <span className="truncate">🌧 {t('dashboard.rainProb')}: {weather.today?.precipitationProbability ?? weather.forecast?.[0]?.precipitationProbability ?? 0}%</span>
+                {weather.resolvedLocation && (
+                  <span className="text-slate-400 text-[10px] truncate max-w-[130px]" title={weather.resolvedLocation}>
+                    📍 {weather.resolvedLocation}
+                  </span>
+                )}
               </div>
             </div>
           ) : (
             <div>
-              <p className="text-xs text-amber-400 font-medium">{t('dashboard.weatherUnavailable')}</p>
-              <p className="text-[11px] text-slate-400 mt-1">No fabricated weather is shown.</p>
+              <p className="text-xs text-amber-400 font-medium">Live weather unavailable</p>
+              <p className="text-[11px] text-slate-400 mt-1">
+                {weather?.reason || 'Weather unavailable for this farm location.'}
+              </p>
             </div>
           )}
         </Card>

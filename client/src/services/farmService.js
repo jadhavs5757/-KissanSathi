@@ -1,5 +1,6 @@
 import supabase from '../config/supabase';
 import api from './api';
+import { weatherService } from './weatherService';
 
 export const farmService = {
   /**
@@ -226,20 +227,43 @@ export const farmService = {
   },
 
   /**
-   * Weather & Schemes queries remain on existing Express backend during this phase.
+   * Real live weather via Open-Meteo with farm profile grounding.
    */
-  async getWeather(farmId) {
-    const res = await api.get(`/farms/${farmId}/weather`);
-    return res.data?.weather;
+  async getWeather(farmOrId, options = {}) {
+    let farm = null;
+    if (typeof farmOrId === 'object' && farmOrId !== null) {
+      farm = farmOrId;
+    } else if (farmOrId) {
+      farm = await farmService.getFarm(farmOrId).catch(() => null);
+    }
+
+    if (!farm) {
+      return {
+        isAvailable: false,
+        reason: 'Farm profile not found.',
+        farmLocation: ''
+      };
+    }
+
+    return weatherService.getLiveWeather(farm, options);
   },
 
-  async getWeatherAction(farmId) {
-    const res = await api.post(`/farms/${farmId}/weather-action`);
-    return res.data?.weatherAction;
+  async getWeatherAction(farmOrId, cropCycle = null) {
+    let farm = null;
+    if (typeof farmOrId === 'object' && farmOrId !== null) {
+      farm = farmOrId;
+    } else if (farmOrId) {
+      farm = await farmService.getFarm(farmOrId).catch(() => null);
+    }
+
+    if (!farm) return null;
+    const weather = await weatherService.getLiveWeather(farm);
+    return weatherService.getAgronomicWeatherAction(weather, cropCycle, farm);
   },
 
   async getSchemes(farmId) {
-    const res = await api.get(`/farms/${farmId}/schemes`);
+    const res = await api.get(`/farms/${farmId}/schemes`).catch(() => ({ schemes: [] }));
     return res.data?.schemes || [];
   }
 };
+

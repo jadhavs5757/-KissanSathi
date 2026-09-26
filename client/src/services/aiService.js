@@ -2,14 +2,20 @@ import supabase from '../config/supabase';
 
 export const aiService = {
   /**
-   * Invoke the Supabase ai-chat Edge Function with multi-turn grounding and Gemini 2.5 Flash.
+   * Invoke the Supabase ai-chat Edge Function with multi-turn grounding and Gemini.
    */
   async askAssistant(payload) {
+    const selectedLanguage =
+      payload.language ||
+      payload.preferredLanguage ||
+      (typeof window !== 'undefined' ? localStorage.getItem('kisansaarthi_lang') : null) ||
+      'en';
+
     const { data, error } = await supabase.functions.invoke('ai-chat', {
       body: {
         message: payload.message,
         conversationId: payload.conversationId || payload.cropCycleId || null,
-        language: payload.preferredLanguage || payload.language || 'en',
+        language: selectedLanguage,
         farmId: payload.farmId || null,
         cropCycleId: payload.cropCycleId || null
       }

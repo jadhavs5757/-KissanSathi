@@ -13,7 +13,7 @@ import gu from './translations/gu.json';
 import pa from './translations/pa.json';
 import od from './translations/od.json';
 
-const translations = { en, te, hi, mr, ta, kn, ml, bn, gu, pa, od };
+const translations = { en, te, hi, mr, ta, kn, ml, bn, gu, pa, od, or: od };
 
 export const SUPPORTED_LANGUAGES = [
   { code: 'en', name: 'English', native: 'English' },
@@ -26,7 +26,7 @@ export const SUPPORTED_LANGUAGES = [
   { code: 'bn', name: 'Bengali', native: 'বাংলা' },
   { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી' },
   { code: 'pa', name: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
-  { code: 'od', name: 'Odia', native: 'ଓଡ଼ିଆ' }
+  { code: 'or', name: 'Odia', native: 'ଓଡ଼ିଆ' }
 ];
 
 const LanguageContext = createContext(null);
@@ -34,16 +34,19 @@ const LanguageContext = createContext(null);
 export function LanguageProvider({ children }) {
   const { user, updateProfile } = useAuth();
   const [language, setLanguageState] = useState(() => {
-    return localStorage.getItem('kisansaarthi_lang') || 'en';
+    const saved = localStorage.getItem('kisansaarthi_lang');
+    if (saved === 'od') return 'or';
+    return saved || 'en';
   });
   const [showFirstTimeModal, setShowFirstTimeModal] = useState(false);
 
   // Sync language from authenticated user profile if present
   useEffect(() => {
-    if (user?.preferred_language && user.preferred_language !== language) {
-      if (translations[user.preferred_language]) {
-        setLanguageState(user.preferred_language);
-        localStorage.setItem('kisansaarthi_lang', user.preferred_language);
+    if (user?.preferred_language) {
+      const normalized = user.preferred_language === 'od' ? 'or' : user.preferred_language;
+      if (normalized !== language && (translations[normalized] || translations[user.preferred_language])) {
+        setLanguageState(normalized);
+        localStorage.setItem('kisansaarthi_lang', normalized);
       }
     }
     // Check if user has never explicitly chosen a language
@@ -54,15 +57,16 @@ export function LanguageProvider({ children }) {
   }, [user]);
 
   const changeLanguage = useCallback(async (langCode) => {
-    if (!translations[langCode]) return;
-    setLanguageState(langCode);
-    localStorage.setItem('kisansaarthi_lang', langCode);
+    const normalized = langCode === 'od' ? 'or' : langCode;
+    if (!translations[normalized]) return;
+    setLanguageState(normalized);
+    localStorage.setItem('kisansaarthi_lang', normalized);
     localStorage.setItem('kisansaarthi_lang_chosen', 'true');
     setShowFirstTimeModal(false);
 
     if (user && updateProfile) {
       try {
-        await updateProfile({ preferred_language: langCode });
+        await updateProfile({ preferred_language: normalized });
       } catch (err) {
         console.warn('Could not persist language to user profile:', err.message);
       }
@@ -123,7 +127,9 @@ export function LanguageProvider({ children }) {
     return n.toLocaleString('en-IN');
   }, []);
 
-  const currentLanguageMeta = SUPPORTED_LANGUAGES.find((l) => l.code === language) || SUPPORTED_LANGUAGES[0];
+  const currentLanguageMeta =
+    SUPPORTED_LANGUAGES.find((l) => l.code === language || (l.code === 'or' && language === 'od')) ||
+    SUPPORTED_LANGUAGES[0];
 
   return (
     <LanguageContext.Provider

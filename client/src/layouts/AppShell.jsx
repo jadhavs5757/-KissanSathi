@@ -36,13 +36,18 @@ export default function AppShell({ children }) {
       try {
         const farmList = await farmService.getFarms();
         setFarms(farmList);
-        if (farmList.length > 0 && !selectedFarmId) {
+        if (farmList.length > 0) {
           // If URL has /farms/:farmId, sync with it
           const match = location.pathname.match(/\/farms\/([0-9a-f-]{36})/i);
+          const savedId = localStorage.getItem('kisansaarthi_active_farm_id');
           if (match && match[1]) {
             setSelectedFarmId(match[1]);
-          } else {
+            localStorage.setItem('kisansaarthi_active_farm_id', match[1]);
+          } else if (savedId && farmList.some((f) => f.id === savedId)) {
+            setSelectedFarmId(savedId);
+          } else if (!selectedFarmId) {
             setSelectedFarmId(farmList[0].id);
+            localStorage.setItem('kisansaarthi_active_farm_id', farmList[0].id);
           }
         }
       } catch (err) {
@@ -102,6 +107,7 @@ export default function AppShell({ children }) {
                   onChange={(e) => {
                     const newId = e.target.value;
                     setSelectedFarmId(newId);
+                    localStorage.setItem('kisansaarthi_active_farm_id', newId);
                     // If currently on a farm-scoped page, navigate to that page for the new farm
                     if (location.pathname.includes('/crops')) navigate(`/farms/${newId}/crops`);
                     else if (location.pathname.includes('/crop-cycles')) navigate(`/farms/${newId}/crop-cycles`);
