@@ -19,8 +19,10 @@ import {
   Tractor
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from '../i18n/LanguageContext';
 
 export default function AiAssistantPage() {
+  const { language, t } = useTranslation();
   const [farms, setFarms] = useState([]);
   const [selectedFarmId, setSelectedFarmId] = useState('');
   const [activeCycle, setActiveCycle] = useState(null);
@@ -95,7 +97,8 @@ export default function AiAssistantPage() {
       const res = await aiService.askAssistant({
         farmId: selectedFarmId || null,
         cropCycleId: activeCycle?.id || null,
-        message: textToSend
+        message: textToSend,
+        preferredLanguage: language
       });
 
       setMessages((prev) => [

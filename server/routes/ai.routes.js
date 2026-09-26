@@ -20,7 +20,8 @@ router.post('/assistant', aiLimiter, validateBody(AssistantRequestSchema), async
       userId: req.user.id,
       farmId: req.body.farmId,
       cropCycleId: req.body.cropCycleId,
-      message: req.body.message
+      message: req.body.message,
+      preferredLanguage: req.body.preferredLanguage || req.user.preferred_language || 'en'
     });
 
     res.json({

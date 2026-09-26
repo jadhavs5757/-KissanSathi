@@ -10,3 +10,4 @@ coverage/
 data/
 server/data/
 client/dist/
+.originkit/

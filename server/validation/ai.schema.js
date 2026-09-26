@@ -62,7 +62,8 @@ export const GeneralAssistantSchema = z.object({
 export const AssistantRequestSchema = z.object({
   farmId: z.string().uuid().optional().nullable(),
   cropCycleId: z.string().uuid().optional().nullable(),
-  message: z.string().trim().min(2, 'Message must be at least 2 characters').max(1000, 'Message cannot exceed 1000 characters')
+  message: z.string().trim().min(2, 'Message must be at least 2 characters').max(1000, 'Message cannot exceed 1000 characters'),
+  preferredLanguage: z.string().trim().max(10).optional().default('en')
 });
 
 export const AiHistoryQuerySchema = z.object({

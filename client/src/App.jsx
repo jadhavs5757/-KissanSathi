@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import AppShell from './layouts/AppShell';
+import ErrorBoundary from './components/ui/ErrorBoundary';
 
 // Pages
 import Landing from './pages/Landing';
@@ -21,12 +22,21 @@ import GovernmentSchemes from './pages/GovernmentSchemes';
 import AiAssistantPage from './pages/AiAssistantPage';
 import AiHistoryPage from './pages/AiHistoryPage';
 import NotFound from './pages/NotFound';
+import FarmEnvironment from './components/animations/FarmEnvironment';
+import FirstTimeLanguageModal from './i18n/FirstTimeLanguageModal';
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public Pages */}
-      <Route path="/" element={<Landing />} />
+    <>
+      {/* Living Farm Animation Layer (non-blocking pointer-events: none) */}
+      <FarmEnvironment />
+
+      {/* First-time Native Language Selection Prompt */}
+      <FirstTimeLanguageModal />
+
+      <Routes>
+        {/* Public Pages */}
+        <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
@@ -36,7 +46,12 @@ export default function App() {
         element={
           <ProtectedRoute>
             <AppShell>
-              <Dashboard />
+              <ErrorBoundary
+                title="Something went wrong"
+                message="The dashboard could not be loaded."
+              >
+                <Dashboard />
+              </ErrorBoundary>
             </AppShell>
           </ProtectedRoute>
         }
@@ -175,5 +190,6 @@ export default function App() {
       {/* 404 Catch-All */}
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </>
   );
 }

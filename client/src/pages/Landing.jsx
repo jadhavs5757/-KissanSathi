@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useTranslation } from '../i18n/LanguageContext';
+import LanguageSelector from '../i18n/LanguageSelector';
 import {
   Sprout,
   TrendingUp,
@@ -16,6 +18,7 @@ import {
 import Button from '../components/ui/Button';
 
 export default function Landing() {
+  const { t } = useTranslation();
   const steps = [
     { title: 'PLAN', desc: 'Profile land, soil, water & budget' },
     { title: 'DECIDE', desc: 'AI crop suitability & scenarios' },
@@ -31,27 +34,24 @@ export default function Landing() {
     <div className="min-h-screen bg-[#0a110c] text-slate-100 flex flex-col selection:bg-forest-500 selection:text-white">
       {/* Top Navbar */}
       <nav className="max-w-7xl w-full mx-auto px-6 py-5 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-forest-600 flex items-center justify-center shadow-lg shadow-forest-900/40 border border-forest-400/40">
-            <Sprout className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <span className="text-lg font-bold font-display text-white tracking-tight leading-tight block">
-              KisanSaarthi <span className="text-emerald-400">AI</span>
-            </span>
-            <span className="text-[10px] text-slate-400 tracking-wide font-medium">Know What to Grow. Know What to Do Next.</span>
-          </div>
-        </div>
+        <Link to="/" className="flex items-center gap-3">
+          <img
+            src="/assets/logo.png"
+            alt="KisanSaarthi AI - Your Farming Partner"
+            className="h-11 w-auto max-h-12 object-contain select-none"
+          />
+        </Link>
 
         <div className="flex items-center gap-3">
+          <LanguageSelector />
           <Link to="/login">
             <Button variant="ghost" size="sm">
-              Sign In
+              {t('auth.signIn')}
             </Button>
           </Link>
           <Link to="/register">
             <Button size="sm">
-              Get Started
+              {t('auth.signUp')}
             </Button>
           </Link>
         </div>

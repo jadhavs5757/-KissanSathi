@@ -4,7 +4,7 @@ import { callGeminiStructured } from '../ai/gemini.client.js';
 import { generateAgronomicAssistantResponse } from '../ai/agronomyEngine.js';
 import { GeneralAssistantSchema } from '../validation/ai.schema.js';
 
-export async function askAssistant({ userId, farmId = null, cropCycleId = null, message }) {
+export async function askAssistant({ userId, farmId = null, cropCycleId = null, message, preferredLanguage = 'en' }) {
   let farmContext = null;
   let cycleContext = null;
   let totalExpenses = 0;
@@ -38,6 +38,7 @@ export async function askAssistant({ userId, farmId = null, cropCycleId = null, 
 
   const promptContext = {
     message,
+    preferredLanguage,
     farm: farmContext ? {
       name: farmContext.name,
       location: farmContext.location,
@@ -56,6 +57,21 @@ export async function askAssistant({ userId, farmId = null, cropCycleId = null, 
     recordedExpenses: `₹${totalExpenses.toLocaleString('en-IN')}`
   };
 
+  const languageNames = {
+    en: 'English',
+    te: 'Telugu (తెలుగు)',
+    hi: 'Hindi (हिन्दी)',
+    mr: 'Marathi (मराठी)',
+    ta: 'Tamil (தமிழ்)',
+    kn: 'Kannada (ಕನ್ನಡ)',
+    ml: 'Malayalam (മലയാളം)',
+    bn: 'Bengali (বাংলা)',
+    gu: 'Gujarati (ગુજરાતી)',
+    pa: 'Punjabi (ਪੰਜਾਬੀ)',
+    od: 'Odia (ଓଡ଼ିଆ)'
+  };
+  const targetLanguage = languageNames[preferredLanguage] || 'English';
+
   const runtimePrompt = `Farmer query: "${message}"
 
 Authoritative Farm Data:
@@ -63,6 +79,8 @@ ${JSON.stringify(promptContext, null, 2)}
 
 Provide clear, structured, practical guidance based on this farm context.
 Rules:
+- LANGUAGE INSTRUCTION: Respond in the user's selected language: ${targetLanguage}. The text content in "answer", "action", "reason", "assumptions", and "missingInformation" MUST be in ${targetLanguage}.
+- CRITICAL JSON SCHEMA RULE: All JSON property names/keys ("answer", "actions", "priority", "action", "reason", "assumptions", "missingInformation", "confidence") MUST REMAIN STRICTLY IN ENGLISH. Do NOT translate keys.
 - Never fabricate data or claim certainty when information is missing.
 - Do not invent chemical doses; advise consulting local agriculture extension officer if chemical details are requested.
 - Distinguish estimates from verified data.
@@ -77,7 +95,7 @@ Rules:
   "confidence": number
 }`;
 
-  const fallback = () => generateAgronomicAssistantResponse(message, farmContext, cycleContext, totalExpenses);
+  const fallback = () => generateAgronomicAssistantResponse(message, farmContext, cycleContext, totalExpenses, preferredLanguage);
 
   const { output, modelName } = await callGeminiStructured({
     prompt: runtimePrompt,
