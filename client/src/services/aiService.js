@@ -1,25 +1,86 @@
-import api from './api';
+import supabase from '../config/supabase';
 
 export const aiService = {
+  /**
+   * Invoke the Supabase ai-chat Edge Function with multi-turn grounding and Gemini 2.5 Flash.
+   */
   async askAssistant(payload) {
-    const res = await api.post('/ai/assistant', payload);
-    return res.data;
+    const { data, error } = await supabase.functions.invoke('ai-chat', {
+      body: {
+        message: payload.message,
+        conversationId: payload.conversationId || payload.cropCycleId || null,
+        language: payload.preferredLanguage || payload.language || 'en',
+        farmId: payload.farmId || null,
+        cropCycleId: payload.cropCycleId || null
+      }
+    });
+
+    if (error) {
+      console.error('Supabase ai-chat error:', error);
+      throw error;
+    }
+
+    if (!data?.success && data?.error) {
+      throw new Error(data.error.message || 'AI chat failed');
+    }
+
+    return data?.data || data;
   },
 
+  /**
+   * Fetch auditable AI history from public.ai_histories.
+   */
   async getHistory(params = {}) {
-    const res = await api.get('/ai/history', { params });
-    return res.data;
+    let query = supabase
+      .from('ai_histories')
+      .select('*, farms(name), crop_cycles(crop_name)')
+      .order('created_at', { ascending: false });
+
+    if (params.featureType) {
+      query = query.eq('feature_type', params.featureType);
+    }
+    if (params.farmId) {
+      query = query.eq('farm_id', params.farmId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.error('Error fetching AI history:', error);
+      return { items: [] };
+    }
+
+    const items = (data || []).map((h) => ({
+      ...h,
+      farm_name: h.farms?.name || null,
+      crop_name: h.crop_cycles?.crop_name || null
+    }));
+
+    return { items };
   },
 
+  /**
+   * Fetch single AI history item by ID.
+   */
   async getHistoryItem(historyId) {
-    const res = await api.get(`/ai/history/${historyId}`);
-    return res.data?.record;
+    const { data, error } = await supabase
+      .from('ai_histories')
+      .select('*, farms(name), crop_cycles(crop_name)')
+      .eq('id', historyId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching AI history item:', error);
+      return null;
+    }
+
+    return {
+      ...data,
+      farm_name: data.farms?.name || null,
+      crop_name: data.crop_cycles?.crop_name || null
+    };
   }
 };
 
-export const schemeService = {
-  async getAllSchemes() {
-    const res = await api.get('/schemes');
-    return res.data?.schemes || [];
-  }
-};
+export { schemeService } from './schemeService';
+
+

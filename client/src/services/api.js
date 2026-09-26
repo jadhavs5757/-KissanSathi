@@ -17,18 +17,10 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Response interceptor to handle session expiration cleanly
+// Response interceptor to format errors cleanly without hijacking Supabase authentication
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear token if expired or invalid
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register' && window.location.pathname !== '/') {
-        localStorage.removeItem('kisansaarthi_token');
-        localStorage.removeItem('kisansaarthi_user');
-        window.location.href = '/login?expired=true';
-      }
-    }
     const message = error.response?.data?.error?.message || error.message || 'Network error occurred';
     return Promise.reject(new Error(message));
   }

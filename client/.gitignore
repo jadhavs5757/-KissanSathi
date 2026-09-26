@@ -1,1 +1,4 @@
 .originkit/
+.env
+.env.*
+!.env.example

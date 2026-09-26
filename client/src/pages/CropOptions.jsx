@@ -160,6 +160,12 @@ export default function CropOptions() {
         </Button>
       </div>
 
+      {error && (
+        <div className="p-4 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs">
+          {error}
+        </div>
+      )}
+
       {/* Assumptions & Missing Info Banner */}
       {(missingInfo.length > 0 || assumptions.length > 0) && (
         <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs">

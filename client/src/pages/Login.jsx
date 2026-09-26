@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
 import { Sprout, LogIn, Lock, Mail, Sparkles } from 'lucide-react';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -17,6 +16,7 @@ export default function Login() {
   const [error, setError] = useState('');
 
   const redirectPath = location.state?.from?.pathname || '/dashboard';
+  const infoMessage = location.state?.message || '';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -38,12 +38,11 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      // First try login; if demo user doesn't exist, auto-register
+      // First try login; if demo user doesn't exist, auto-register via Supabase Auth
       try {
         await login('demo.farmer@kisansaarthi.in', 'KisanDemo@2026');
       } catch (loginErr) {
-        // Register demo user
-        await api.post('/auth/register', {
+        await register({
           name: 'Ramesh Patel',
           email: 'demo.farmer@kisansaarthi.in',
           password: 'KisanDemo@2026',
@@ -79,6 +78,11 @@ export default function Login() {
 
         {/* Login Card */}
         <div className="glass-panel p-8 rounded-3xl border border-emerald-500/20 shadow-2xl relative overflow-hidden">
+          {infoMessage && (
+            <div className="mb-5 p-3 rounded-xl bg-emerald-950/60 border border-emerald-500/30 text-emerald-300 text-xs">
+              {infoMessage}
+            </div>
+          )}
           {error && (
             <div className="mb-5 p-3 rounded-xl bg-rose-950/60 border border-rose-500/30 text-rose-300 text-xs">
               {error}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { farmService } from '../services/farmService';
+import { schemeService } from '../services/schemeService';
 import Card, { CardHeader } from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -26,10 +27,8 @@ export default function GovernmentSchemes() {
   useEffect(() => {
     async function loadData() {
       try {
-        const [farmData, schemeList] = await Promise.all([
-          farmService.getFarm(farmId),
-          farmService.getSchemes(farmId)
-        ]);
+        const farmData = await farmService.getFarm(farmId);
+        const schemeList = await schemeService.getSchemes(farmId, farmData);
         setFarm(farmData);
         setSchemes(schemeList);
       } catch (err) {

@@ -11,3 +11,5 @@ data/
 server/data/
 client/dist/
 .originkit/
+
+supabase/.temp/
